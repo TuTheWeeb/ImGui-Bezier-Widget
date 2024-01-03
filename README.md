@@ -1,1 +1,1 @@
-Just need to add the file to your directory and include in the main file.
+Just need to add the files to your directory and include imgui_bezier.hpp in your main file in the main file.
