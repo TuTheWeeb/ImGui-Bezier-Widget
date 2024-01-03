@@ -1,9 +1,9 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include "interpolation.hpp"
 #include <vector>
 #include <time.h>
+#include "interpolation.hpp"
 
 namespace ImGui
 {
@@ -201,11 +201,15 @@ namespace ImGui
     }
 
     // Not necessary to use
-    bool Envelope(std::vector<ImVec2> &Points, std::vector<ImVec2> &Results) {
+    bool Bezier_Editor(std::vector<ImVec2> &Points, std::vector<ImVec2> &Results) {
         bool cond = true;
-        Begin("Envelope", NULL, ImGuiWindowFlags_NoResize);
-        cond = Bezier("Envelope", Points, Results);
+        
+        Begin("Bezier Editor", NULL, ImGuiWindowFlags_NoResize);
+        
+        cond = Bezier("Bezier Editor", Points, Results);
+        
         End();
+
         return cond;
     }
 }
