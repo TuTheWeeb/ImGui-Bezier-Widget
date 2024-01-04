@@ -1,3 +1,6 @@
+// Copyright (c) 2024 TuTheWeeb
+// See LICENSE.txt for copyright and licensing details (standard MIT License).
+
 #pragma once
 #include <vector>
 #include "imgui.h"

@@ -1,3 +1,7 @@
+// Copyright (c) 2024 TuTheWeeb
+// See LICENSE.txt for copyright and licensing details (standard MIT License).
+
+#pragma once
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
