@@ -218,9 +218,9 @@ namespace ImGui
     bool Bezier_Widget(std::vector<ImVec2> &Points, std::vector<ImVec2> &Results) {
         bool cond = true;
 
-        Begin("Bezier_Widget", NULL, ImGuiWindowFlags_NoResize);
+        Begin("Bezier Widget", NULL, ImGuiWindowFlags_NoResize);
         
-        cond = Bezier("Bezier_Widget", Points, Results);
+        cond = Bezier("Bezier Widget", Points, Results);
         
         End();
         
