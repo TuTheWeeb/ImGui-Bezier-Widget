@@ -1,9 +1,8 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <vector>
-#include <time.h>
 #include "interpolation.hpp"
+#include <vector>
 
 namespace ImGui
 {
@@ -11,6 +10,19 @@ namespace ImGui
     int steps = 512;
     bool grabbing = false;
     int grabbing_index = 0;
+
+    std::vector<float> get_distance_from_mouse(std::vector<ImVec2> Points, ImVec2 mouse, ImVec2 Canvas, ImRect rect_frame) {
+        std::vector<float> distance;
+        
+        // Get the distance from the mouse to all points
+        for (int i = 0; i < Points.size(); ++i) {
+            ImVec2 pos = ImVec2(Points.at(i).x, 1 - Points.at(i).y) * (rect_frame.Max - rect_frame.Min) + rect_frame.Min;
+
+            distance.push_back((pos.x - mouse.x)/Canvas.x * (pos.x - mouse.x)/Canvas.x + (pos.y - mouse.y)/Canvas.y * (pos.y - mouse.y)/Canvas.y);
+        }
+
+        return distance;
+    }
 
     // Get the index of the tiniest value in a float vector
     int tiniest_value_index(std::vector<float> vec) {
@@ -27,6 +39,19 @@ namespace ImGui
         return index;
     }
 
+    // Get the nearest point in a points vector, * consider the point that have a x component tiniest than the point
+    int nearest_val_index(std::vector<ImVec2> points, ImVec2 point) {
+      for (int i = 0; i < points.size(); i++) {
+          if (point.x > points.at(i).x) {
+              continue;
+          }
+          else {
+              return i;
+          }
+      }
+      return 0;
+    }
+
     // Return true if a point is inside a rectangle
     bool get_collision(ImRect rect, ImVec2 point) {
         if ((point.x < rect.Max.x) and (point.x > rect.Min.x) and (point.y > rect.Min.y) and (point.y < rect.Max.y)) return true;
@@ -35,18 +60,19 @@ namespace ImGui
     }
 
     // Get a any size quantity of points and set its start and end at 0 and 1
-    std::vector<ImVec2> BezierValue(std::vector<ImVec2> &Points, int steps) {
-        std::vector<ImVec2> P;
-
+    std::vector<ImVec2> get_bezier_results(std::vector<ImVec2> Points, int steps) {
+        // Set the start and end point
         ImVec2 start = {0,0}, end = {1,1};
 
-        P.insert(P.begin(), start);
-        for (ImVec2 point : Points) P.push_back(point);
-        P.push_back(end);
+        Points.insert(Points.begin(), start);
+        Points.push_back(end);
 
         std::vector<ImVec2> results;
-        results = vector_interpolation(P, steps);
+        results = vector_interpolation(Points, steps);
+        
+        // Compensate for possible incompletness
         results.push_back({1,1});
+        
         return results;
     }
 
@@ -59,12 +85,11 @@ namespace ImGui
         const ImGuiIO& IO = GetIO();
         ImDrawList* DrawList = GetWindowDrawList();
         ImGuiWindow* Window = GetCurrentWindow();
-        // Can be changed (if the size, is too tiny can generate bugs)
-        ImGui::SetWindowSize(ImVec2(600, 400));
+        
+        // Can be changed (if the size, is too small can generate bugs)
+        SetWindowSize(ImVec2(600, 400));
 
-
-        if (Window->SkipItems)
-            return false;
+        if (Window->SkipItems) return false;
 
         // header and spacing
         int hovered = IsItemActive() || IsItemHovered();
@@ -75,70 +100,70 @@ namespace ImGui
         Canvas.x = Canvas.x - 50;
 
         // Create the rectangle frame
-        ImRect bb(Window->DC.CursorPos, Window->DC.CursorPos + Canvas);
-        ItemSize(bb);
-        if (!ItemAdd(bb, NULL))
+        ImRect rect_frame(Window->DC.CursorPos, Window->DC.CursorPos + Canvas);
+        ItemSize(rect_frame);
+        if (!ItemAdd(rect_frame, NULL))
             return false;
 
         // Handle the moving of the window
         const ImGuiID id = Window->GetID(label);
-        hovered |= 0 != ItemHoverable(ImRect(bb.Min, bb.Min + Canvas), id, g.LastItemData.InFlags);
+        hovered |= 0 != ItemHoverable(ImRect(rect_frame.Min, rect_frame.Min + Canvas), id, g.LastItemData.InFlags);
 
-        // Render the bb rect frame
-        RenderFrame(bb.Min, bb.Max, GetColorU32(ImGuiCol_FrameBg, 1), true, Style.FrameRounding);
+        // Render the rect_frame
+        RenderFrame(rect_frame.Min, rect_frame.Max, GetColorU32(ImGuiCol_FrameBg, 1), true, Style.FrameRounding);
 
-        // background grid
-        for (int i = 0; i <= Canvas.x; i += (Canvas.x / 4)) {
+        // Add background grid to the drawlist
+        for (int i = 0, j = 0; i < Canvas.x; i += (Canvas.x / 4), j += (Canvas.y / 4)) {
+            // X component
             DrawList->AddLine(
-                ImVec2(bb.Min.x + i, bb.Min.y),
-                ImVec2(bb.Min.x + i, bb.Max.y),
-                GetColorU32(ImGuiCol_TextDisabled));
-        }
-        for (int i = 0; i <= Canvas.y; i += (Canvas.y / 4)) {
+                ImVec2(rect_frame.Min.x + i, rect_frame.Min.y),
+                ImVec2(rect_frame.Min.x + i, rect_frame.Max.y),
+                GetColorU32(ImGuiCol_TextDisabled)
+            );
+
+            // Y component
             DrawList->AddLine(
-                ImVec2(bb.Min.x, bb.Min.y + i),
-                ImVec2(bb.Max.x, bb.Min.y + i),
-                GetColorU32(ImGuiCol_TextDisabled));
+                ImVec2(rect_frame.Min.x, rect_frame.Min.y + j),
+                ImVec2(rect_frame.Max.x, rect_frame.Min.y + j),
+                GetColorU32(ImGuiCol_TextDisabled)
+            );
         }
 
-        // eval curve
-        SliderInt("Smoothness", &steps, 512, 1024, "%d", 0);
-        std::vector<ImVec2> results = ImGui::BezierValue(Points, steps);
+        // Evaluate the curve and set the smoothness
+        SliderInt("Smoothness", &steps, 512, 2048, "%d", 0);
+        std::vector<ImVec2> results = get_bezier_results(Points, steps);
         Results = results;
 
-        // Let the user handle the close
+        // Let the programmer handle the close
         if (Button("Close", {80,20})) return false;
         
-        // handle grabbers
+        // Mouse translation
         ImVec2 mouse = GetIO().MousePos;
-        std::vector<ImVec2> pos;
-        std::vector<float> distance;
-        
-        for (int i = 0; i < Points.size(); ++i) {
-            pos.push_back(ImVec2(Points.at(i).x, 1 - Points.at(i).y) * (bb.Max - bb.Min) + bb.Min);
 
-            distance.push_back((pos.at(i).x - mouse.x)/Canvas.x * (pos.at(i).x - mouse.x)/Canvas.x + (pos.at(i).y - mouse.y)/Canvas.y * (pos.at(i).y - mouse.y)/Canvas.y);
-        }
-
-        ImVec2 mouse_canvas = (mouse - bb.Min)/(bb.Max - bb.Min);
+        ImVec2 mouse_canvas = (mouse - rect_frame.Min)/(rect_frame.Max - rect_frame.Min);
         mouse_canvas.y = (mouse_canvas.y - 1) * -1;
 
-        if (IsMouseClicked(1) and get_collision(bb, mouse)) {
-            int grab_index = tiniest_value_index(distance);
+        std::vector<float> distance = get_distance_from_mouse(Points, mouse, Canvas, rect_frame);
 
-            if ((distance.at(grab_index) < 0.001) and (Points.size() > 2)) {
-                Points.erase(Points.begin() + grab_index);
+        // Handle Points / grabbers
+        // add a new Point / grabber or remove an already existing one
+        if (IsMouseClicked(1) and get_collision(rect_frame, mouse)) {
+            int grabb_index = tiniest_value_index(distance);
+
+            if ((distance.at(grabb_index) < 0.001) and (Points.size() > 2)) {
+                Points.erase(Points.begin() + grabb_index);
             } 
             else {
                 Points.insert(Points.begin() + nearest_val_index(Points, mouse_canvas), mouse_canvas);
             }
         }
-        
-        if (IsMouseClicked(0) and get_collision(bb, mouse) and (!grabbing)) {
+
+        // Move points / grabbers
+        if (IsMouseClicked(0) and get_collision(rect_frame, mouse) and (!grabbing)) {
             grabbing_index = tiniest_value_index(distance);
             grabbing = true;
         }
-        else if (IsMouseDown(0) and get_collision(bb, mouse)) {
+        else if (IsMouseDown(0) and get_collision(rect_frame, mouse)) {
             if (distance.at(grabbing_index) < 0.005) {
                 Points.at(grabbing_index).x = mouse_canvas.x;
                 Points.at(grabbing_index).y = mouse_canvas.y;
@@ -152,64 +177,49 @@ namespace ImGui
         ImColor color(GetStyle().Colors[ImGuiCol_PlotLines]);
         for (int i = 1; i < steps; i++) {
             ImVec2 p0 = { results.at(i - 1).x, 1 - results.at(i - 1).y };
-            ImVec2 p1 = { results.at(i).x, 1 - results.at(i).y };            
+            ImVec2 p1 = { results.at(i).x, 1 - results.at(i).y };           
 
-            p0 = p0 * (bb.Max - bb.Min) + bb.Min;
-            p1 = p1 * (bb.Max - bb.Min) + bb.Min;
+            p0 = p0 * (rect_frame.Max - rect_frame.Min) + rect_frame.Min;
+            p1 = p1 * (rect_frame.Max - rect_frame.Min) + rect_frame.Min;
 
             DrawList->AddLine(p0, p1, color, curve_width);
         }
 
-        float grab_radius = ((bb.Max.x - bb.Min.x) + (bb.Max.y - bb.Min.y))/100.;
-
-        // draw preview (cycles every 1s)
-        static clock_t epoch = clock();
-        ImVec4 white(GetStyle().Colors[ImGuiCol_Text]);
-        for (int i = 0; i < 3; ++i) {
-            double now = ((clock() - epoch) / (double)CLOCKS_PER_SEC);
-            float delta = ((int) (now * 1000) % 1000) / 1000.f; delta += i / 3.f; if (delta > 1) delta -= 1;
-            int idx = (int) (delta * steps);
-            float evalx = results.at(idx).x; 
-            float evaly = results.at(idx).y;
-            ImVec2 p0 = ImVec2(evalx, 1) * (bb.Max - bb.Min) + bb.Min;
-            ImVec2 p1 = ImVec2(0, 1 - evaly) * (bb.Max - bb.Min) + bb.Min;
-            ImVec2 p2 = ImVec2(evalx, 1 - evaly) * (bb.Max - bb.Min) + bb.Min;
-            DrawList->AddCircleFilled(p0, grab_radius / 2, ImColor(white));
-            DrawList->AddCircleFilled(p1, grab_radius / 2, ImColor(white));
-            DrawList->AddCircleFilled(p2, grab_radius / 2, ImColor(white));
-        }
+        // Get a percentage of the rect_frame
+        float grab_radius = ((rect_frame.Max.x - rect_frame.Min.x) + (rect_frame.Max.y - rect_frame.Min.y))/100.;
 
         // draw lines and grabbers
-        float luma = IsItemActive() || IsItemHovered() ? 0.5f : 1.0f;
-        ImVec4 blue(0.0f, 0.00f, 1.0f, luma), cyan(0.00f, 0.75f, 1.00f, luma);
+        float brightness = IsItemActive() || IsItemHovered() ? 0.5f : 1.0f;
+        ImColor white(GetStyle().Colors[ImGuiCol_Text]);
+        ImVec4 grabber_color(0.0f, 0.00f, 1.0f, brightness);
         for (int i = 0; i < Points.size(); i++) {
-            blue.z = 1 - Points.at(i).y;
-            blue.x = Points.at(i).y;
+            grabber_color.z = 1 - Points.at(i).y;
+            grabber_color.x = Points.at(i).y;
             
             // Get the value in the curve
             ImVec2 p0 = results.at(nearest_val_index(results, Points.at(i)));
             p0.y = 1 - p0.y;
-            p0 = p0 * (bb.Max - bb.Min) + bb.Min;
+            p0 = p0 * (rect_frame.Max - rect_frame.Min) + rect_frame.Min;
 
-            ImVec2 p1 = ImVec2(Points.at(i).x, 1 - Points.at(i).y) * (bb.Max - bb.Min) + bb.Min;
+            ImVec2 p1 = ImVec2(Points.at(i).x, 1 - Points.at(i).y) * (rect_frame.Max - rect_frame.Min) + rect_frame.Min;
             DrawList->AddLine(p0, p1, ImColor(white), 2);
-            DrawList->AddCircleFilled(p1, grab_radius, ImColor(white));
-            DrawList->AddCircleFilled(p1, grab_radius - (grab_radius/5.), ImColor(blue));
+            DrawList->AddCircleFilled(p1, grab_radius, white);
+            DrawList->AddCircleFilled(p1, grab_radius - (grab_radius/5.), ImColor(grabber_color));
         }
 
         return true;
     }
 
     // Not necessary to use
-    bool Bezier_Editor(std::vector<ImVec2> &Points, std::vector<ImVec2> &Results) {
+    bool Bezier_Widget(std::vector<ImVec2> &Points, std::vector<ImVec2> &Results) {
         bool cond = true;
+
+        Begin("Bezier_Widget", NULL, ImGuiWindowFlags_NoResize);
         
-        Begin("Bezier Editor", NULL, ImGuiWindowFlags_NoResize);
-        
-        cond = Bezier("Bezier Editor", Points, Results);
+        cond = Bezier("Bezier_Widget", Points, Results);
         
         End();
-
+        
         return cond;
     }
 }
