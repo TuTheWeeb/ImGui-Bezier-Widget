@@ -1,6 +1,6 @@
 Just need to add the files to your directory and include imgui_bezier.hpp in your main file, and certify that you have imgui.
 
-Can be used this way:
+Can be used by creating a separete window:
 
 ```CPP
 // The points to apply the bezier function
@@ -13,7 +13,7 @@ ImGui::Bezier_Widget(Points, Results);
 
 ```
 
-or:
+or putting in a already existing one:
 
 ```CPP
 
@@ -21,6 +21,12 @@ std::vector<ImVec2> Points = {{0.2, 0.8}, {0.5, 0.1}};
 
 std::vector<ImVec2> Results;
 
+ImGui::Begin("Window);
+...
+
 ImGui::Bezier("Label", Points, Results);
+
+...
+ImGui::End();
 
 ```
