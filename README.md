@@ -6,7 +6,7 @@ Can be used this way:
 // The points to apply the bezier function
 std::vector<ImVec2> Points = {{0.2, 0.8}, {0.5, 0.1}};
 
-// Where the resulting discrete function for the points
+// Where the resulting discrete function for the points is stored
 std::vector<ImVec2> Results;
 
 ImGui::Bezier_Widget(Points, Results);
