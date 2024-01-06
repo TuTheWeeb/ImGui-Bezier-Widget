@@ -1,13 +1,13 @@
 <h2>ImGui Bezier Widget</h2>
 
-    Just need to add the files to your directory and include imgui_bezier.hpp in your main file, and certify that you have imgui.
+Just need to add the files to your directory and include imgui_bezier.hpp in your main file, and certify that you have imgui.
 
 ![Alt Text](https://github.com/TuTheWeeb/ImGui-Bezier-Widget/blob/main/BezierWidget.gif)
 
 <h3>Usability:</h3>
     You can change the smoothness of the curve by changing the smoothness slider, if you click with the right mouse button you can add or exclude a Point/Grabber, if you click and press with left mouse button you can change the grabber position, the close button only makes the function returns false.
 
-    To incorporate in your code you need to use the ImGui::Bezier_Widget function or create a window and add the curve editor with ImGui::Bezier.
+To incorporate in your code you need to use the ImGui::Bezier_Widget function or create a window and add the curve editor with ImGui::Bezier.
 
 <h3>With ImGui::Bezier_Widget:</h3>
 
